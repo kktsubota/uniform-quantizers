@@ -8,12 +8,13 @@ class RoundingEntropyBottleneck(tfc.EntropyBottleneck):
         init_scale=10,
         filters=(3, 3, 3),
         data_format="channels_last",
-        activation="deterministic",
+        activation="STE-Q",
         **kwargs
     ):
         super(RoundingEntropyBottleneck, self).__init__(
             init_scale=init_scale, filters=filters, data_format=data_format, **kwargs
         )
+        assert activation in {"STE-Q", "St-Q", "SGA-Q", "U-Q"}
         self.activation = activation
         self.tau = 0.5
 
@@ -27,11 +28,11 @@ class RoundingEntropyBottleneck(tfc.EntropyBottleneck):
         outputs = tf.cast(outputs, self.dtype)
 
         if mode == "noise":
-            if self.activation == "deterministic":
+            if self.activation == "STE-Q":
                 return tf.stop_gradient(outputs + medians - inputs) + inputs
-            elif self.activation in {"stochastic", "sga"}:
+            elif self.activation in {"St-Q", "SGA-Q"}:
                 diff = (inputs - medians) - tf.floor(inputs - medians)
-                if self.activation == "stochastic":
+                if self.activation == "St-Q":
                     probability = diff
                 else:
                     likelihood_up = tf.exp(-tf.atanh(diff) / self.tau)
@@ -43,7 +44,7 @@ class RoundingEntropyBottleneck(tfc.EntropyBottleneck):
                 )
                 outputs = tf.floor(inputs - medians) + delta
                 return tf.stop_gradient(outputs + medians - inputs) + inputs
-            elif self.activation == "universal":
+            elif self.activation == "U-Q":
                 # random value, shape: (N, 1, 1, 1)
                 noise = tf.random.uniform(tf.shape(inputs), -half, half)[
                     :, 0:1, 0:1, 0:1

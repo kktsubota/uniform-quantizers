@@ -162,7 +162,7 @@ def train(args):
 
     # Instantiate model.
     analysis_transform = AnalysisTransform(args.num_filters)
-    if args.qua_ent == "noise":
+    if args.qua_ent == "AUN-Q":
         entropy_bottleneck = tfc.EntropyBottleneck()
     else:
         entropy_bottleneck = RoundingEntropyBottleneck(activation=args.qua_ent)
@@ -174,7 +174,7 @@ def train(args):
     # if decaying_iter < 0, tau should be 0.5.
     tau = tf.minimum(0.5, 0.5 * tf.exp(-args.tau_decay_factor * decaying_iter))
 
-    if args.qua_ent == "sga":
+    if args.qua_ent == "SGA-Q":
         entropy_bottleneck.tau = tau
 
     # Build autoencoder.
@@ -184,16 +184,16 @@ def train(args):
     # decoder quantization
     if args.qua_dec == args.qua_ent:
         y_dec = y_tilde
-    elif args.qua_dec == "noise":
+    elif args.qua_dec == "AUN-Q":
         half = tf.constant(0.5)
         noise = tf.random.uniform(tf.shape(y), -half, half)
         y_dec = y + noise
-    elif args.qua_dec == "deterministic":
+    elif args.qua_dec == "STE-Q":
         y_hat = tf.round(y)
         y_dec = tf.stop_gradient(y_hat - y) + y
-    elif args.qua_dec in {"stochastic", "sga"}:
+    elif args.qua_dec in {"St-Q", "SGA-Q"}:
         diff = y - tf.floor(y)
-        if args.qua_dec == "stochastic":
+        if args.qua_dec == "St-Q":
             probability = diff
         else:
             likelihood_up = tf.exp(-tf.atanh(diff) / tau)
@@ -204,7 +204,7 @@ def train(args):
         )
         y_hat = tf.floor(y) + delta
         y_dec = tf.stop_gradient(y_hat - y) + y
-    elif args.qua_dec == "universal":
+    elif args.qua_dec == "U-Q":
         # random value, shape: (N, 1, 1, 1)
         half = tf.constant(0.5)
         noise = tf.random.uniform(tf.shape(y), -half, half)[:, 0:1, 0:1, 0:1]
@@ -267,7 +267,7 @@ def compress(args):
 
     # Instantiate model.
     analysis_transform = AnalysisTransform(args.num_filters)
-    if args.qua_ent == "noise":
+    if args.qua_ent == "AUN-Q":
         entropy_bottleneck = tfc.EntropyBottleneck()
     else:
         entropy_bottleneck = RoundingEntropyBottleneck(activation=args.qua_ent)
@@ -340,7 +340,7 @@ def decompress(args):
     arrays = packed.unpack(tensors)
 
     # Instantiate model.
-    if args.qua_ent == "noise":
+    if args.qua_ent == "AUN-Q":
         entropy_bottleneck = tfc.EntropyBottleneck()
     else:
         entropy_bottleneck = RoundingEntropyBottleneck(activation=args.qua_ent)
@@ -383,8 +383,8 @@ def parse_args(argv):
     )
     parser.add_argument(
         "--qua_ent",
-        choices={"noise", "deterministic", "stochastic", "sga", "universal"},
-        default="noise",
+        choices={"AUN-Q", "STE-Q", "St-Q", "SGA-Q", "U-Q"},
+        default="AUN-Q",
     )
     parser.add_argument(
         "--checkpoint_dir",
@@ -443,8 +443,8 @@ def parse_args(argv):
     )
     train_cmd.add_argument(
         "--qua_dec",
-        choices={"noise", "deterministic", "stochastic", "sga", "universal"},
-        default="noise",
+        choices={"AUN-Q", "STE-Q", "St-Q", "SGA-Q", "U-Q"},
+        default="AUN-Q",
     )
     train_cmd.add_argument("--tau_decay_factor", type=float, default=0.0003)
     train_cmd.add_argument("--tau_decay_iteration", type=int, default=990000)
