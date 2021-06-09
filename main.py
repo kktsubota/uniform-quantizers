@@ -1,13 +1,14 @@
 import argparse
-import glob
+import os
 import sys
 
 from absl import app
 from absl.flags import argparse_flags
 import numpy as np
-import tensorflow.compat.v1 as tf
-
+import tensorflow as tf
 import tensorflow_compression as tfc
+
+from module import RoundingEntropyBottleneck
 
 
 def read_png(filename):
@@ -136,7 +137,9 @@ def train(args):
 
     # Create input data pipeline.
     with tf.device("/cpu:0"):
-        train_files = glob.glob(args.train_glob)
+        with open(args.train_file) as f:
+            lines = f.readlines()
+        train_files = [os.path.join(args.train_root, line.strip()) for line in lines]
         if not train_files:
             raise RuntimeError(
                 "No training images found with glob '{}'.".format(args.train_glob)
@@ -159,13 +162,57 @@ def train(args):
 
     # Instantiate model.
     analysis_transform = AnalysisTransform(args.num_filters)
-    entropy_bottleneck = tfc.EntropyBottleneck()
+    if args.qua_ent == "noise":
+        entropy_bottleneck = tfc.EntropyBottleneck()
+    else:
+        entropy_bottleneck = RoundingEntropyBottleneck(activation=args.qua_ent)
     synthesis_transform = SynthesisTransform(args.num_filters)
+
+    # tau scheduler
+    step = tf.train.create_global_step()
+    decaying_iter = tf.cast(step - args.tau_decay_iteration, tf.float32)
+    # if decaying_iter < 0, tau should be 0.5.
+    tau = tf.minimum(0.5, 0.5 * tf.exp(-args.tau_decay_factor * decaying_iter))
+
+    if args.qua_ent == "sga":
+        entropy_bottleneck.tau = tau
 
     # Build autoencoder.
     y = analysis_transform(x)
     y_tilde, likelihoods = entropy_bottleneck(y, training=True)
-    x_tilde = synthesis_transform(y_tilde)
+
+    # decoder quantization
+    if args.qua_dec == args.qua_ent:
+        y_dec = y_tilde
+    elif args.qua_dec == "noise":
+        half = tf.constant(0.5)
+        noise = tf.random.uniform(tf.shape(y), -half, half)
+        y_dec = y + noise
+    elif args.qua_dec == "deterministic":
+        y_hat = tf.round(y)
+        y_dec = tf.stop_gradient(y_hat - y) + y
+    elif args.qua_dec in {"stochastic", "sga"}:
+        diff = y - tf.floor(y)
+        if args.qua_dec == "stochastic":
+            probability = diff
+        else:
+            likelihood_up = tf.exp(-tf.atanh(diff) / tau)
+            likelihood_down = tf.exp(-tf.atanh(1 - diff) / tau)
+            probability = likelihood_down / (likelihood_up + likelihood_down)
+        delta = tf.cast(
+            (probability >= tf.random.uniform(tf.shape(probability))), tf.float32
+        )
+        y_hat = tf.floor(y) + delta
+        y_dec = tf.stop_gradient(y_hat - y) + y
+    elif args.qua_dec == "universal":
+        # random value, shape: (N, 1, 1, 1)
+        half = tf.constant(0.5)
+        noise = tf.random.uniform(tf.shape(y), -half, half)[:, 0:1, 0:1, 0:1]
+        y_univ = tf.round(y + noise) - noise
+        y_dec = tf.stop_gradient(y_univ - y) + y
+    else:
+        raise NotImplementedError
+    x_tilde = synthesis_transform(y_dec)
 
     # Total number of bits divided by number of pixels.
     train_bpp = tf.reduce_sum(tf.log(likelihoods)) / (-np.log(2) * num_pixels)
@@ -179,7 +226,6 @@ def train(args):
     train_loss = args.lmbda * train_mse + train_bpp
 
     # Minimize loss and auxiliary loss, and execute update op.
-    step = tf.train.create_global_step()
     main_optimizer = tf.train.AdamOptimizer(learning_rate=1e-4)
     main_step = main_optimizer.minimize(train_loss, global_step=step)
 
@@ -191,6 +237,7 @@ def train(args):
     tf.summary.scalar("loss", train_loss)
     tf.summary.scalar("bpp", train_bpp)
     tf.summary.scalar("mse", train_mse)
+    tf.summary.scalar("tau", tau)
 
     tf.summary.image("original", quantize_image(x))
     tf.summary.image("reconstruction", quantize_image(x_tilde))
@@ -220,7 +267,10 @@ def compress(args):
 
     # Instantiate model.
     analysis_transform = AnalysisTransform(args.num_filters)
-    entropy_bottleneck = tfc.EntropyBottleneck()
+    if args.qua_ent == "noise":
+        entropy_bottleneck = tfc.EntropyBottleneck()
+    else:
+        entropy_bottleneck = RoundingEntropyBottleneck(activation=args.qua_ent)
     synthesis_transform = SynthesisTransform(args.num_filters)
 
     # Transform and compress the image.
@@ -269,12 +319,12 @@ def compress(args):
             # The actual bits per pixel including overhead.
             bpp = len(packed.string) * 8 / num_pixels
 
-            print("Mean squared error: {:0.4f}".format(mse))
-            print("PSNR (dB): {:0.2f}".format(psnr))
-            print("Multiscale SSIM: {:0.4f}".format(msssim))
-            print("Multiscale SSIM (dB): {:0.2f}".format(-10 * np.log10(1 - msssim)))
-            print("Information content in bpp: {:0.4f}".format(eval_bpp))
-            print("Actual bits per pixel: {:0.4f}".format(bpp))
+            print("Mean squared error: {}".format(mse))
+            print("PSNR (dB): {}".format(psnr))
+            print("Multiscale SSIM: {}".format(msssim))
+            print("Multiscale SSIM (dB): {}".format(-10 * np.log10(1 - msssim)))
+            print("Information content in bpp: {}".format(eval_bpp))
+            print("Actual bits per pixel: {}".format(bpp))
 
 
 def decompress(args):
@@ -290,7 +340,10 @@ def decompress(args):
     arrays = packed.unpack(tensors)
 
     # Instantiate model.
-    entropy_bottleneck = tfc.EntropyBottleneck(dtype=tf.float32)
+    if args.qua_ent == "noise":
+        entropy_bottleneck = tfc.EntropyBottleneck()
+    else:
+        entropy_bottleneck = RoundingEntropyBottleneck(activation=args.qua_ent)
     synthesis_transform = SynthesisTransform(args.num_filters)
 
     # Decompress and transform the image back.
@@ -329,6 +382,11 @@ def parse_args(argv):
         "--num_filters", type=int, default=128, help="Number of filters per layer."
     )
     parser.add_argument(
+        "--qua_ent",
+        choices={"noise", "deterministic", "stochastic", "sga", "universal"},
+        default="noise",
+    )
+    parser.add_argument(
         "--checkpoint_dir",
         default="train",
         help="Directory where to save/load model checkpoints.",
@@ -351,10 +409,11 @@ def parse_args(argv):
         description="Trains (or continues to train) a new model.",
     )
     train_cmd.add_argument(
-        "--train_glob",
-        default="images/*.png",
-        help="Glob pattern identifying training data. This pattern must expand "
-        "to a list of RGB images in PNG format.",
+        "--train_root",
+        help="path to the ImageNet train dir",
+    )
+    train_cmd.add_argument(
+        "--train_file", default="datasets/ImageNetAll.txt", help="paths of image files"
     )
     train_cmd.add_argument(
         "--batchsize", type=int, default=8, help="Batch size for training."
@@ -382,6 +441,13 @@ def parse_args(argv):
         help="Number of CPU threads to use for parallel decoding of training "
         "images.",
     )
+    train_cmd.add_argument(
+        "--qua_dec",
+        choices={"noise", "deterministic", "stochastic", "sga", "universal"},
+        default="noise",
+    )
+    train_cmd.add_argument("--tau_decay_factor", type=float, default=0.0003)
+    train_cmd.add_argument("--tau_decay_iteration", type=int, default=990000)
 
     # 'compress' subcommand.
     compress_cmd = subparsers.add_parser(
