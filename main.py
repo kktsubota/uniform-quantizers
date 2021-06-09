@@ -5,7 +5,7 @@ import sys
 from absl import app
 from absl.flags import argparse_flags
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import tensorflow_compression as tfc
 
 from module import RoundingEntropyBottleneck
@@ -150,7 +150,7 @@ def train(args):
             read_png, num_parallel_calls=args.preprocess_threads
         )
         train_dataset = train_dataset.map(
-            lambda x: tf.random_crop(x, (args.patchsize, args.patchsize, 3))
+            lambda x: tf.image.random_crop(x, (args.patchsize, args.patchsize, 3))
         )
         train_dataset = train_dataset.batch(args.batchsize)
         train_dataset = train_dataset.prefetch(32)
