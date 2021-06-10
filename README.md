@@ -3,8 +3,10 @@ Official implementation of "Comprehensive Comparisons of Uniform Quantizers for 
 
 ## Dataset
 Prepare ImageNet and the Kodak dataset.
+
 We removed images whose shorter edge is smaller than 256 pixels for ImageNet.
-You can download the list of images that we used in our experiments by the following commands.
+
+Download the list of images that we used in our experiments by the following commands.
 
 ```
 mkdir datasets
@@ -35,9 +37,11 @@ python evaluate.py /path/to/Kodak/images/ --qua_ent AUN-Q --checkpoint_dir check
 
 You can train other combinations of approximation methods by specifying `--qua_ent` and `--qua_dec`.
 
+Please select from `{AUN-Q, STE-Q, U-Q, SGA-Q}` for each option.
+
 ## Citation
 ```
-@inproceedings{tsubota,
+@inproceedings{tsubotaICIP21,
     title = {Comprehensive Comparisons of Uniform Quantizers for Deep Image Compression},
     author = {Tsubota, Koki and Aizawa, Kiyoharu},
     booktitle = {ICIP},
