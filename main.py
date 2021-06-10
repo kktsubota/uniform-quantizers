@@ -165,7 +165,7 @@ def train(args):
     if args.qua_ent == "AUN-Q":
         entropy_bottleneck = tfc.EntropyBottleneck()
     else:
-        entropy_bottleneck = RoundingEntropyBottleneck(activation=args.qua_ent)
+        entropy_bottleneck = RoundingEntropyBottleneck(approx=args.qua_ent)
     synthesis_transform = SynthesisTransform(args.num_filters)
 
     # tau scheduler
@@ -270,7 +270,7 @@ def compress(args):
     if args.qua_ent == "AUN-Q":
         entropy_bottleneck = tfc.EntropyBottleneck()
     else:
-        entropy_bottleneck = RoundingEntropyBottleneck(activation=args.qua_ent)
+        entropy_bottleneck = RoundingEntropyBottleneck(approx=args.qua_ent)
     synthesis_transform = SynthesisTransform(args.num_filters)
 
     # Transform and compress the image.
@@ -343,7 +343,7 @@ def decompress(args):
     if args.qua_ent == "AUN-Q":
         entropy_bottleneck = tfc.EntropyBottleneck()
     else:
-        entropy_bottleneck = RoundingEntropyBottleneck(activation=args.qua_ent)
+        entropy_bottleneck = RoundingEntropyBottleneck(approx=args.qua_ent)
     synthesis_transform = SynthesisTransform(args.num_filters)
 
     # Decompress and transform the image back.

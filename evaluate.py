@@ -32,6 +32,8 @@ def main():
     )
     parser.add_argument("--distortion", default="mse", choices={"mse", "msssim"})
     parser.add_argument("--checkpoint_dir", default="train")
+    parser.add_argument("--decode", action="store_true")
+    parser.add_argument("--out", default="score.csv")
     args = parser.parse_args()
 
     fnames = sorted(os.listdir(args.data))
@@ -60,20 +62,21 @@ def main():
         p.wait()
 
         # decompress
-        p = subprocess.Popen(
-            "python main.py --qua_ent {} --checkpoint_dir {} decompress {}.tfci {}.tfci.png".format(
-                args.qua_ent,
-                args.checkpoint_dir,
-                os.path.join(tfci_dir, fname),
-                os.path.join(decomp_dir, fname),
-            ),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            shell=True,
-        )
-        print(p.args)
-        p.communicate()
-        p.wait()
+        if args.decode:
+            p = subprocess.Popen(
+                "python main.py --qua_ent {} --checkpoint_dir {} decompress {}.tfci {}.tfci.png".format(
+                    args.qua_ent,
+                    args.checkpoint_dir,
+                    os.path.join(tfci_dir, fname),
+                    os.path.join(decomp_dir, fname),
+                ),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                shell=True,
+            )
+            print(p.args)
+            p.communicate()
+            p.wait()
 
         score_str: str = str(output, encoding="utf-8", errors="replace")
         try:
@@ -96,7 +99,7 @@ def main():
         df["Loss"] = (
             args.lmbda * (1 - df["Multiscale SSIM"]) + df["Information content in bpp"]
         )
-    df.to_csv(os.path.join(args.checkpoint_dir, "score.csv"))
+    df.to_csv(os.path.join(args.checkpoint_dir, args.out))
     print(df.mean())
 
 

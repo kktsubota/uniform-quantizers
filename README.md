@@ -8,11 +8,13 @@ You can download the list of images that we used in our experiments by the follo
 
 ```
 mkdir datasets
-wget https://github.com/fujibo/uniform-quantizers/releases/download/pre/ImageNet256.txt -O datasets/ImageNet256.txt
+wget https://github.com/kktsubota/uniform-quantizers/releases/download/pre/ImageNet256.txt -O datasets/ImageNet256.txt
 ```
 
-
 ## Environment
+* CUDA==10.0
+* CUDNN==7.6.0
+* Python
 
 ```
 pip install pipenv
@@ -28,7 +30,7 @@ Refer to `Pipfile` if you download packages manually.
 python main.py --verbose --checkpoint_dir checkpoints/l0.01_aun_aun --qua_ent AUN-Q train --lambda 0.01 --qua_dec AUN-Q --train_root /path/to/ImageNet/train/
 
 # evaluate the model
-python evaluate.py /home/tsubota/data/compression/Kodak/images/ --qua_ent AUN-Q --checkpoint_dir checkpoints/l0.01_aun_aun/
+python evaluate.py /path/to/Kodak/images/ --qua_ent AUN-Q --checkpoint_dir checkpoints/l0.01_aun_aun/
 ```
 
 You can train other combinations of approximation methods by specifying `--qua_ent` and `--qua_dec`.
