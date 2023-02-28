@@ -1,18 +1,6 @@
 # Comprehensive Comparisons of Uniform Quantizers for Deep Image Compression
 Official implementation of "Comprehensive Comparisons of Uniform Quantizers for Deep Image Compression" in ICIP 2021.
 
-## Dataset
-Prepare ImageNet and the Kodak dataset.
-
-We removed images whose shorter edge is smaller than 256 pixels for ImageNet.
-
-Download the list of images that we used in our experiments by the following commands.
-
-```
-mkdir datasets
-wget https://github.com/kktsubota/uniform-quantizers/releases/download/pre/ImageNet256.txt -O datasets/ImageNet256.txt
-```
-
 ## Environment
 * CUDA==10.0
 * CUDNN==7.6.0
@@ -49,3 +37,7 @@ Please select from `{AUN-Q, STE-Q, U-Q, SGA-Q}` for each option.
     pages={2089-2093}
 }
 ```
+
+## Note
+Our code is based on the example codes in [Tensorflow Compression](https://github.com/tensorflow/compression/tree/v1.3/examples) licensed under Apache-2.0 (Copyright 2018 Google LLC).
+

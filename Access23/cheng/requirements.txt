@@ -1,0 +1,6 @@
+tensorflow-gpu==1.14
+range-coder
+tensorflow_compression-1.2-cp36-cp36m-manylinux1_x86_64.whl
+hydra-core
+pandas
+tensorflow-probability==0.7.0

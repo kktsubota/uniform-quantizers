@@ -413,7 +413,7 @@ def parse_args(argv):
         help="path to the ImageNet train dir",
     )
     train_cmd.add_argument(
-        "--train_file", default="datasets/ImageNet256.txt", help="paths of image files"
+        "--train_file", default="../datasets/ImageNet256.txt", help="paths of image files"
     )
     train_cmd.add_argument(
         "--batchsize", type=int, default=8, help="Batch size for training."
