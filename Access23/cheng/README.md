@@ -8,6 +8,7 @@ pip install -r requirements.txt
 
 ## Comparison in Uniform Quantization
 **Training**
+
 *AUN-Q, U-Q, (AUN-Q, STE-Q), (AUN-Q, U-Q), (AUN-Q, DS-Q), (U-Q, STE-Q), (U-Q, DS-Q)*
 ```bash
 # (TRAIN.QUANTIZE_ENT, TRAIN.QUANTIZE_DEC) should be set to

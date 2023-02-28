@@ -14,6 +14,7 @@ Refer to `Pipfile` if you download packages manually.
 
 ## Comparison in Uniform Quantization
 **Training**
+
 *Quantization except STH-Q* (the below shows an example of (U-Q, DS-Q))
 ```bash
 # Ballé17

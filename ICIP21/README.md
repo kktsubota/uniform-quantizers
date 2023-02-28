@@ -40,4 +40,3 @@ Please select from `{AUN-Q, STE-Q, U-Q, SGA-Q}` for each option.
 
 ## Note
 Our code is based on the example codes in [Tensorflow Compression](https://github.com/tensorflow/compression/tree/v1.3/examples) licensed under Apache-2.0 (Copyright 2018 Google LLC).
-

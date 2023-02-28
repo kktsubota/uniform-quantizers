@@ -4,7 +4,7 @@ This repository provides the source code of our two papers:
 - "Comprehensive Comparisons of Uniform Quantization in Deep Image Compression" in IEEE Access 2023.
 
 ## Dataset Preparation
-Prepare ImageNet and the Kodak dataset.
+Prepare the ImageNet, Kodak, and CLIC datasets.
 
 We removed images whose shorter edge is smaller than 256 pixels for ImageNet.
 
